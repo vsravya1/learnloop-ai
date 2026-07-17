@@ -79,17 +79,23 @@ def summarize_questions(question_plans, events):
                 f"understood: {'yes' if bool(final_assessment['assessor_understood']) else 'no'}"
             )
 
+        decisions = "\n".join(
+            f"Turn {turn_number}: {strategy}"
+            for turn_number, strategy in sorted(turn_strategies.items())
+            if strategy
+        )
+        agent_interactions = (
+            f"Planner: {plan['strategy']}, {plan['intent']}, {plan['difficulty']}\n"
+            f"Coach: {latest_response['coach_excerpt'] if latest_response is not None else 'pending'}\n"
+            f"Assessor: {assessor}"
+        )
         rows.append(
             {
                 "student_id": plan["student_id"],
                 "concept": f"{plan['subject']} > {plan['concept']} > {plan['sub_concept']}",
                 "question": plan["question_text"],
-                "Planner": f"{plan['strategy']}, {plan['intent']}, {plan['difficulty']}",
-                "Coach": latest_response["coach_excerpt"] if latest_response is not None else "pending",
-                "Assessor": assessor,
-                "turn_1_decision": turn_strategies.get(1, ""),
-                "turn_2_decision": turn_strategies.get(2, ""),
-                "turn_3_decision": turn_strategies.get(3, ""),
+                "Agent interactions": agent_interactions,
+                "Decisions": decisions,
                 "hint_count": int(coach_turns["hint_count"].max()) if not coach_turns.empty else 0,
                 "outcome": outcome,
                 "timestamp": plan["timestamp"],
@@ -124,10 +130,17 @@ def render_activity_table(question_summary):
         """
         <style>
             .activity-table-wrap { overflow-x: auto; border: 1px solid #e8e8ee; border-radius: 0.65rem; }
-            .activity-table { width: 100%; min-width: 1350px; border-collapse: collapse; font-size: 0.86rem; }
+            .activity-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; table-layout: fixed; }
             .activity-table th { background: #f7f6fb; color: #4d4d5b; font-weight: 600; text-align: left; }
-            .activity-table th, .activity-table td { padding: 0.75rem; border-bottom: 1px solid #ececf1; vertical-align: top; white-space: normal; }
-            .activity-table td:nth-child(3), .activity-table td:nth-child(4), .activity-table td:nth-child(5) { min-width: 220px; }
+            .activity-table th, .activity-table td { padding: 0.75rem; border-bottom: 1px solid #ececf1; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+            .activity-table th:nth-child(1) { width: 10%; }
+            .activity-table th:nth-child(2) { width: 15%; }
+            .activity-table th:nth-child(3) { width: 20%; }
+            .activity-table th:nth-child(4) { width: 28%; }
+            .activity-table th:nth-child(5) { width: 15%; }
+            .activity-table th:nth-child(6) { width: 5%; }
+            .activity-table th:nth-child(7) { width: 7%; }
+            .activity-table td:nth-child(4), .activity-table td:nth-child(5) { white-space: pre-line; }
             .outcome-badge { display: inline-block; padding: 0.22rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
             .outcome-solved { background: #dcfce7; color: #166534; }
             .outcome-reveal { background: #fef3c7; color: #92400e; }
@@ -356,7 +369,7 @@ else:
         tuple(plans["question_id"]),
     )
     question_summary = summarize_questions(plans, events)
-    st.caption("Long question, planner, and coach text wraps in this table so it remains fully readable.")
+    st.caption("Agent interactions and turn decisions are grouped into wider columns for easier reading.")
     render_activity_table(question_summary)
 
 st.subheader("Coaching strategy glossary")

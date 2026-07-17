@@ -18,10 +18,9 @@ from db.db import DB_PATH, init_db  # noqa: E402
 
 
 STUDENTS = {
-    "maya-chen": "Maya Chen",
-    "liam-patel": "Liam Patel",
-    "noor-ahmed": "Noor Ahmed",
-    "ethan-park": "Ethan Park",
+    "test-user1": "test-user1",
+    "test-user2": "test-user2",
+    "test-user3": "test-user3",
 }
 
 TOPICS = [
@@ -35,10 +34,9 @@ TOPICS = [
 
 # Each tuple is (outcome, coaching turns). The first three are earlier sessions.
 LEARNING_PATHS = {
-    "maya-chen": [("full", 3), ("full", 3), ("solved", 2), ("solved", 1), ("solved", 1), ("solved", 1)],
-    "liam-patel": [("solved", 2), ("solved", 1), ("solved", 1), ("solved", 1), ("solved", 1), ("solved", 1)],
-    "noor-ahmed": [("solved", 1), ("full", 3), ("full", 3), ("full", 3), ("full", 3), ("solved", 2)],
-    "ethan-park": [("full", 3), ("solved", 2), ("full", 3), ("solved", 1), ("solved", 1), ("solved", 1)],
+    "test-user1": [("full", 3), ("full", 3), ("solved", 2), ("solved", 1), ("solved", 1), ("solved", 1)],
+    "test-user2": [("solved", 2), ("solved", 1), ("solved", 1), ("solved", 1), ("solved", 1), ("solved", 1)],
+    "test-user3": [("solved", 1), ("full", 3), ("full", 3), ("full", 3), ("full", 3), ("solved", 2)],
 }
 
 INITIAL_STRATEGIES = ["hint", "socratic_question", "worked_example", "reveal_next_step"]
