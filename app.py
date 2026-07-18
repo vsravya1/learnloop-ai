@@ -7,8 +7,14 @@ import streamlit as st
 
 from agents.assessor import assess_response
 from agents.chat import regular_chat_response
-from agents.coach import coach_response
+from agents.coach import coach_response, role_redirect_response
+from agents.coaching_loop import (
+    is_non_answer_deflection,
+    next_turn_action,
+    requests_full_answer,
+)
 from agents.planner import plan_response
+from agents.safety import safety_response
 from db.db import (
     get_student_memory,
     init_db,
@@ -17,6 +23,7 @@ from db.db import (
     update_mastery,
 )
 from ui import inject_product_css
+from settings import MAX_COACHING_TURNS
 
 
 init_db()
@@ -29,7 +36,6 @@ st.set_page_config(
 inject_product_css()
 
 ASSETS_DIR = Path(__file__).with_name("assets")
-GREETING_MESSAGES = {"hi", "hello", "hey", "good morning", "good afternoon", "good evening"}
 
 
 def get_avatar(role):
@@ -208,9 +214,9 @@ for chat_message in st.session_state.messages:
 if st.session_state.active_question:
     progress_column, action_column = st.columns([5, 1])
     with progress_column:
-        current_step = min(st.session_state.hint_count, 3)
+        current_step = min(st.session_state.hint_count, MAX_COACHING_TURNS)
         st.markdown(
-            f'<div class="coaching-step">Coaching step {current_step} of 3</div>',
+            f'<div class="coaching-step">Coaching step {current_step} of {MAX_COACHING_TURNS}</div>',
             unsafe_allow_html=True,
         )
     with action_column:
@@ -229,12 +235,26 @@ if st.session_state.active_question:
 
 if message := st.chat_input("Ask LearnLoop anything"):
     st.session_state.messages.append({"role": "user", "content": message})
-    student_memory = get_student_memory(st.session_state.student_id)
-    should_log_interaction = False
 
     with st.chat_message("user", avatar=get_avatar("user")):
         st.markdown(message)
 
+    role_redirect = role_redirect_response(message)
+    if role_redirect:
+        with st.chat_message("assistant", avatar=get_avatar("assistant")):
+            st.markdown(role_redirect)
+        st.session_state.messages.append({"role": "assistant", "content": role_redirect})
+        st.rerun()
+
+    safe_reply = safety_response(message)
+    if safe_reply:
+        with st.chat_message("assistant", avatar=get_avatar("assistant")):
+            st.markdown(safe_reply)
+        st.session_state.messages.append({"role": "assistant", "content": safe_reply})
+        st.rerun()
+
+    student_memory = get_student_memory(st.session_state.student_id)
+    should_log_interaction = False
     with st.chat_message("assistant", avatar=get_avatar("assistant")):
         if st.session_state.active_question and st.session_state.active_plan:
             plan = st.session_state.active_plan
@@ -244,20 +264,6 @@ if message := st.chat_input("Ask LearnLoop anything"):
 
             with st.spinner("Understanding your message..."):
                 incoming_plan = plan_response(message, student_memory, original_question)
-
-            if not incoming_plan["requires_coaching"]:
-                if message.strip().lower().strip(".!?") in GREETING_MESSAGES:
-                    close_active_question_as_skipped(
-                        plan, question_id, original_question, current_hint_count
-                    )
-                    st.session_state.active_question = None
-                    st.session_state.active_plan = None
-                    st.session_state.hint_count = 0
-                    st.session_state.active_question_id = None
-                reply = regular_chat_response(message, original_question)
-                st.markdown(reply)
-                st.session_state.messages.append({"role": "assistant", "content": reply})
-                st.rerun()
 
             if incoming_plan["starts_new_question"]:
                 close_active_question_as_skipped(
@@ -275,51 +281,80 @@ if message := st.chat_input("Ask LearnLoop anything"):
                 log_conversation(st.session_state.student_id, "assistant", reply)
                 st.rerun()
 
-            with st.spinner("Checking your response..."):
-                assessment = assess_response(message, original_question, plan["subject"], plan["concept"], plan["sub_concept"], current_hint_count)
-
-            score_delta = 0.0
-            if assessment["is_answer_attempt"] and assessment["correct_this_turn"]:
-                score_delta = 0.3 if current_hint_count == 1 else (0.15 if current_hint_count <= 3 else 0.05)
-            if assessment["is_answer_attempt"]:
-                should_log_interaction = True
+            should_log_interaction = True
+            assessment = None
+            skip_assessment_for_reveal = (
+                requests_full_answer(message)
+                or (
+                    current_hint_count >= MAX_COACHING_TURNS
+                    and is_non_answer_deflection(message)
+                )
+            )
+            if skip_assessment_for_reveal:
+                # A direct reveal request or clear non-answer is superseded by
+                # the cap reveal. Genuine answer attempts are still assessed.
+                turn_action = "full_reveal"
+            else:
+                with st.spinner("Checking your response..."):
+                    assessment = assess_response(
+                        message, original_question, plan["subject"], plan["concept"],
+                        plan["sub_concept"], current_hint_count,
+                    )
+                score_delta = 0.3 if assessment["correct_this_turn"] and current_hint_count == 1 else 0.15 if assessment["correct_this_turn"] else 0.0
                 update_mastery(st.session_state.student_id, plan["subject"], plan["concept"], plan["sub_concept"], score_delta)
                 log_agent_decision(
                     st.session_state.student_id, plan["subject"], plan["concept"], plan["sub_concept"],
                     plan["intent"], plan["difficulty"], plan["strategy"], plan["is_repeat_struggle"],
                     event_type="assessment", hint_count=current_hint_count, question_id=question_id,
-                    question_text=original_question, assessor_understood=assessment["understood"],
-                    assessor_correct=assessment["correct_this_turn"],
+                    question_text=original_question, student_message=message,
+                    turn_number=current_hint_count + 1,
+                    assessor_understood=assessment["understood"], assessor_correct=assessment["correct_this_turn"],
                     outcome="solved_independently" if assessment["correct_this_turn"] else None,
                 )
-
-            if not assessment["is_answer_attempt"]:
-                reply = regular_chat_response(message, original_question)
-                reply_activity = None
-            elif assessment["correct_this_turn"]:
+                turn_action = next_turn_action(assessment, current_hint_count, message)
+            if turn_action == "solved":
+                resolved_turn = current_hint_count + 1
                 reply = "Nice work — that shows you understand it. Send your next question when you're ready."
                 reply_activity = activity_details(
                     plan, current_hint_count, assessment=assessment,
                     outcome="solved independently",
                 )
+                log_agent_decision(
+                    st.session_state.student_id, plan["subject"], plan["concept"], plan["sub_concept"],
+                    plan["intent"], plan["difficulty"], plan["strategy"], plan["is_repeat_struggle"],
+                    event_type="resolution", hint_count=current_hint_count, question_id=question_id,
+                    question_text=original_question, student_message=message,
+                    turn_number=resolved_turn, coach_excerpt=make_excerpt(reply),
+                    assessor_understood=assessment["understood"], assessor_correct=assessment["correct_this_turn"],
+                    outcome="solved_independently",
+                )
                 st.session_state.active_question = None
                 st.session_state.active_plan = None
                 st.session_state.hint_count = 0
                 st.session_state.active_question_id = None
-            elif current_hint_count >= 3:
+            elif turn_action == "full_reveal":
+                final_hint_count = current_hint_count
                 with st.spinner("Showing the complete solution..."):
-                    reply = coach_response("full_answer", message, student_memory, original_question, current_hint_count)
+                    reply = coach_response(
+                        "full_answer",
+                        message,
+                        student_memory,
+                        original_question,
+                        final_hint_count,
+                    )
                 log_agent_decision(
                     st.session_state.student_id, plan["subject"], plan["concept"], plan["sub_concept"],
                     plan["intent"], plan["difficulty"], "full_answer", plan["is_repeat_struggle"],
                     note="Coaching limit reached; full solution revealed before independent completion.",
-                    event_type="full_reveal", hint_count=current_hint_count, question_id=question_id,
-                    question_text=original_question, coach_excerpt=make_excerpt(reply),
-                    assessor_understood=assessment["understood"], assessor_correct=assessment["correct_this_turn"],
+                    event_type="full_reveal", hint_count=final_hint_count, question_id=question_id,
+                    question_text=original_question, student_message=message,
+                    turn_number=current_hint_count + 1, coach_excerpt=make_excerpt(reply),
+                    assessor_understood=assessment["understood"] if assessment else None,
+                    assessor_correct=assessment["correct_this_turn"] if assessment else None,
                     outcome="needed_full_reveal",
                 )
                 reply_activity = activity_details(
-                    plan, current_hint_count, "full_answer", assessment,
+                    plan, final_hint_count, "full_answer", assessment,
                     "needed full reveal",
                 )
                 st.session_state.active_question = None
@@ -342,7 +377,8 @@ if message := st.chat_input("Ask LearnLoop anything"):
                     st.session_state.student_id, plan["subject"], plan["concept"], plan["sub_concept"],
                     plan["intent"], plan["difficulty"], next_strategy, plan["is_repeat_struggle"],
                     event_type="coach_turn", hint_count=next_turn, question_id=question_id,
-                    question_text=original_question, turn_number=next_turn, coach_excerpt=make_excerpt(reply),
+                    question_text=original_question, student_message=message,
+                    turn_number=next_turn, coach_excerpt=make_excerpt(reply),
                 )
                 st.session_state.hint_count = next_turn
                 reply_activity = activity_details(plan, next_turn, next_strategy, assessment)
@@ -358,7 +394,8 @@ if message := st.chat_input("Ask LearnLoop anything"):
                 log_agent_decision(
                     st.session_state.student_id, plan["subject"], plan["concept"], plan["sub_concept"],
                     plan["intent"], plan["difficulty"], plan["strategy"], plan["is_repeat_struggle"],
-                    event_type="question_plan", question_id=question_id, question_text=message, turn_number=0,
+                    event_type="question_plan", question_id=question_id, question_text=message,
+                    student_message=message, turn_number=0,
                 )
                 with st.spinner("Preparing your response..."):
                     reply = coach_response(plan["strategy"], message, student_memory, message)
@@ -366,7 +403,7 @@ if message := st.chat_input("Ask LearnLoop anything"):
                     st.session_state.student_id, plan["subject"], plan["concept"], plan["sub_concept"],
                     plan["intent"], plan["difficulty"], plan["strategy"], plan["is_repeat_struggle"],
                     event_type="coach_turn", hint_count=1, question_id=question_id, question_text=message,
-                    turn_number=1, coach_excerpt=make_excerpt(reply),
+                    student_message=message, turn_number=1, coach_excerpt=make_excerpt(reply),
                 )
                 st.session_state.active_question = message
                 st.session_state.active_plan = plan

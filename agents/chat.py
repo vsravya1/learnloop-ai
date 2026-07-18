@@ -22,6 +22,11 @@ question, politely say they can continue it whenever they are ready.
             instructions=instructions,
             input=f"{context}Student message: {message}",
         )
-        return response.output_text.strip()
-    except (AttributeError, TypeError, ValueError):
-        return "Hi! Whenever you're ready, share a learning question and we'll work through it together."
+        reply = (response.output_text or "").strip()
+        if reply:
+            return reply
+        print("Regular chat returned an empty response; using the chat fallback.")
+    except Exception as error:
+        print(f"Regular chat response failed: {error}")
+
+    return "Hi! Whenever you're ready, share a learning question and we'll work through it together."

@@ -25,6 +25,7 @@ def init_db():
             "hint_count": "INTEGER DEFAULT 0",
             "question_id": "TEXT",
             "question_text": "TEXT",
+            "student_message": "TEXT",
             "turn_number": "INTEGER",
             "coach_excerpt": "TEXT",
             "assessor_understood": "BOOLEAN",
@@ -86,6 +87,7 @@ def log_agent_decision(
     hint_count=0,
     question_id=None,
     question_text=None,
+    student_message=None,
     turn_number=None,
     coach_excerpt=None,
     assessor_understood=None,
@@ -98,9 +100,9 @@ def log_agent_decision(
             "INSERT INTO agent_log "
             "(student_id, subject, concept, sub_concept, intent, difficulty, "
             "strategy, is_repeat_struggle, event_type, hint_count, question_id, "
-            "question_text, turn_number, coach_excerpt, assessor_understood, "
+            "question_text, student_message, turn_number, coach_excerpt, assessor_understood, "
             "assessor_correct, outcome, note, timestamp) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
             (
                 student_id,
                 subject,
@@ -114,6 +116,7 @@ def log_agent_decision(
                 hint_count,
                 question_id,
                 question_text,
+                student_message,
                 turn_number,
                 coach_excerpt,
                 assessor_understood,

@@ -9,8 +9,10 @@ def inject_product_css():
         """
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-            html, body, [class*="css"] {
+            html { font-size: 17px; }
+            body, [class*="css"] {
                 font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                font-size: 17px;
             }
             [data-testid="stAppViewContainer"] { background: #fcfcfe; }
             [data-testid="stMainBlockContainer"], section.main > div.block-container {

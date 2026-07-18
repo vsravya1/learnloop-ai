@@ -45,18 +45,17 @@ def calculate_independence_trend(questions):
 
 
 def summarize_questions(question_plans, events):
-    """Turn planner, coach, and assessor events into one demo-ready question row."""
+    """Render each question as an auditable learner/agent turn trace."""
     rows = []
     for _, plan in question_plans.iterrows():
-        question_events = events[events["question_id"] == plan["question_id"]]
+        question_events = events[events["question_id"] == plan["question_id"]].copy()
         coach_turns = question_events[question_events["event_type"] == "coach_turn"].sort_values("turn_number")
         assessments = question_events[question_events["event_type"] == "assessment"].sort_values(["timestamp", "id"])
         full_reveals = question_events[question_events["event_type"] == "full_reveal"].sort_values(["timestamp", "id"])
+        resolutions = question_events[question_events["event_type"] == "resolution"].sort_values(["timestamp", "id"])
         skipped_questions = question_events[question_events["outcome"] == "skipped"]
-        response_events = pd.concat([coach_turns, full_reveals]).sort_values(["timestamp", "id"])
 
         final_assessment = assessments.iloc[-1] if not assessments.empty else None
-        latest_response = response_events.iloc[-1] if not response_events.empty else None
         outcome = "in progress"
         if not skipped_questions.empty:
             outcome = "skipped"
@@ -65,37 +64,45 @@ def summarize_questions(question_plans, events):
         elif final_assessment is not None and bool(final_assessment["assessor_correct"]):
             outcome = "solved independently"
 
-        turn_strategies = {
-            int(turn["turn_number"]): turn["strategy"]
-            for _, turn in coach_turns.iterrows()
-            if pd.notna(turn["turn_number"])
-        }
-        assessor = "pending"
-        if not skipped_questions.empty and final_assessment is None:
-            assessor = "not assessed (skipped)"
-        elif final_assessment is not None:
-            assessor = (
-                f"correct: {'yes' if bool(final_assessment['assessor_correct']) else 'no'}; "
-                f"understood: {'yes' if bool(final_assessment['assessor_understood']) else 'no'}"
+        response_events = pd.concat([coach_turns, full_reveals, resolutions])
+        response_events = response_events.sort_values(["turn_number", "timestamp", "id"])
+        trace_parts = []
+        for _, response in response_events.iterrows():
+            turn_number = int(response["turn_number"])
+            matching_assessments = assessments[assessments["turn_number"] == turn_number]
+            if not matching_assessments.empty:
+                assessment = matching_assessments.iloc[-1]
+                assessor_text = (
+                    f"correct: {'yes' if bool(assessment['assessor_correct']) else 'no'}; "
+                    f"understood: {'yes' if bool(assessment['assessor_understood']) else 'no'}"
+                )
+            elif response["event_type"] == "full_reveal":
+                assessor_text = "not evaluated — resolved by full reveal at turn cap"
+            elif turn_number == 1:
+                assessor_text = "not yet evaluated (first coaching turn)"
+            else:
+                assessor_text = "not evaluated"
+
+            planner_text = (
+                f"{response['strategy']}, {plan['intent']}, {plan['difficulty']}"
+                if turn_number == 1
+                else "same question context"
+            )
+            student_message = response["student_message"] or plan["question_text"]
+            trace_parts.append(
+                f"Turn {turn_number}\n"
+                f"Student: {student_message}\n"
+                f"Planner: {planner_text}\n"
+                f"Coach: {response['coach_excerpt'] or 'pending'}\n"
+                f"Assessor: {assessor_text}"
             )
 
-        decisions = "\n".join(
-            f"Turn {turn_number}: {strategy}"
-            for turn_number, strategy in sorted(turn_strategies.items())
-            if strategy
-        )
-        agent_interactions = (
-            f"Planner: {plan['strategy']}, {plan['intent']}, {plan['difficulty']}\n"
-            f"Coach: {latest_response['coach_excerpt'] if latest_response is not None else 'pending'}\n"
-            f"Assessor: {assessor}"
-        )
         rows.append(
             {
                 "student_id": plan["student_id"],
                 "concept": f"{plan['subject']} > {plan['concept']} > {plan['sub_concept']}",
                 "question": plan["question_text"],
-                "Agent interactions": agent_interactions,
-                "Decisions": decisions,
+                "Turn-by-turn trace": "\n\n".join(trace_parts),
                 "hint_count": int(coach_turns["hint_count"].max()) if not coach_turns.empty else 0,
                 "outcome": outcome,
                 "timestamp": plan["timestamp"],
@@ -133,14 +140,13 @@ def render_activity_table(question_summary):
             .activity-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; table-layout: fixed; }
             .activity-table th { background: #f7f6fb; color: #4d4d5b; font-weight: 600; text-align: left; }
             .activity-table th, .activity-table td { padding: 0.75rem; border-bottom: 1px solid #ececf1; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
-            .activity-table th:nth-child(1) { width: 10%; }
+            .activity-table th:nth-child(1) { width: 9%; }
             .activity-table th:nth-child(2) { width: 15%; }
-            .activity-table th:nth-child(3) { width: 20%; }
-            .activity-table th:nth-child(4) { width: 28%; }
-            .activity-table th:nth-child(5) { width: 15%; }
-            .activity-table th:nth-child(6) { width: 5%; }
-            .activity-table th:nth-child(7) { width: 7%; }
-            .activity-table td:nth-child(4), .activity-table td:nth-child(5) { white-space: pre-line; }
+            .activity-table th:nth-child(3) { width: 17%; }
+            .activity-table th:nth-child(4) { width: 48%; }
+            .activity-table th:nth-child(5) { width: 5%; }
+            .activity-table th:nth-child(6) { width: 6%; }
+            .activity-table td:nth-child(4) { white-space: pre-line; }
             .outcome-badge { display: inline-block; padding: 0.22rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
             .outcome-solved { background: #dcfce7; color: #166534; }
             .outcome-reveal { background: #fef3c7; color: #92400e; }
@@ -345,6 +351,11 @@ else:
     else:
         struggled_topics["topic"] = struggled_topics["sub_concept"]
     st.bar_chart(struggled_topics.set_index("topic")["average_mastery_score"])
+    if (struggled_topics["average_mastery_score"] == 0).all():
+        st.caption(
+            "All selected topics currently have a 0.00 mastery score. "
+            "Scores increase only when a student independently demonstrates the final answer."
+        )
 
 plans = query_dataframe(
     """

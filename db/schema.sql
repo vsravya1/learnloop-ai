@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS agent_log (
     hint_count INTEGER DEFAULT 0,
     question_id TEXT,
     question_text TEXT,
+    student_message TEXT,
     turn_number INTEGER,
     coach_excerpt TEXT,
     assessor_understood BOOLEAN,

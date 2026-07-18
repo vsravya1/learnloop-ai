@@ -34,9 +34,9 @@ TOPICS = [
 
 # Each tuple is (outcome, coaching turns). The first three are earlier sessions.
 LEARNING_PATHS = {
-    "test-user1": [("full", 3), ("full", 3), ("solved", 2), ("solved", 1), ("solved", 1), ("solved", 1)],
+    "test-user1": [("full", 2), ("full", 2), ("solved", 2), ("solved", 1), ("solved", 1), ("solved", 1)],
     "test-user2": [("solved", 2), ("solved", 1), ("solved", 1), ("solved", 1), ("solved", 1), ("solved", 1)],
-    "test-user3": [("solved", 1), ("full", 3), ("full", 3), ("full", 3), ("full", 3), ("solved", 2)],
+    "test-user3": [("solved", 1), ("full", 2), ("full", 2), ("full", 2), ("full", 2), ("solved", 2)],
 }
 
 INITIAL_STRATEGIES = ["hint", "socratic_question", "worked_example", "reveal_next_step"]
