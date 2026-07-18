@@ -122,9 +122,10 @@ def render_activity_table(question_summary):
         for column in table_data.columns:
             value = "" if pd.isna(row[column]) else str(row[column])
             if column == "summary":
-                outcome = "" if pd.isna(row["outcome"]) else str(row["outcome"])
+                source_row = question_summary.loc[row.name]
+                outcome = "" if pd.isna(source_row["outcome"]) else str(source_row["outcome"])
                 label, css_class = outcome_badges.get(outcome, (outcome, "outcome-progress"))
-                turns = int(row["hint_count"])
+                turns = int(source_row["hint_count"])
                 cells.append(
                     '<td class="activity-summary">'
                     f'<div>{turns} coaching turn{"s" if turns != 1 else ""}</div>'
