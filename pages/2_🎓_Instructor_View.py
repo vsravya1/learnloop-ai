@@ -2,17 +2,11 @@
 
 import sqlite3
 from html import escape
-from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
-from learnloop_db.db import init_db
+from learnloop_db.db import DB_PATH, init_db
 from ui import inject_product_css
-
-
-DB_PATH = Path(__file__).resolve().parents[1] / "db" / "learnloop.db"
-
 
 def query_dataframe(query, parameters=()):
     with sqlite3.connect(DB_PATH) as conn:

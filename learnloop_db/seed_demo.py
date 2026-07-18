@@ -14,7 +14,7 @@ sys.path = [
     *[path for path in sys.path if Path(path or ".").resolve() != SCRIPT_DIR],
 ]
 
-from db.db import DB_PATH, init_db  # noqa: E402
+from learnloop_db.db import DB_PATH, init_db  # noqa: E402
 
 
 STUDENTS = {
