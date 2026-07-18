@@ -64,6 +64,15 @@ PLAN_SCHEMA = {
     "additionalProperties": False,
 }
 
+ALLOWED_INTENTS = {"homework", "essay", "coding", "conceptual_question", "other"}
+ALLOWED_DIFFICULTIES = {"easy", "medium", "hard"}
+ALLOWED_STRATEGIES = {
+    "hint",
+    "socratic_question",
+    "worked_example",
+    "reveal_next_step",
+}
+
 PLANNER_INSTRUCTIONS = """
 You are the LearnLoop planning agent. Classify the student's request and choose
 one teaching strategy. Prefer guiding the student with a hint, Socratic question,
@@ -71,7 +80,14 @@ worked example, or next step. Never provide or choose a full answer. Classify ev
 question with a concise subject, concept, and sub_concept. Use consistent Title Case
 labels; for example, an essay question can be English > Writing > Essay Writing.
 Reuse the same label for equivalent topics whenever possible. Return only the JSON
-object that matches the supplied schema. Set is_repeat_struggle to true only when
+object with exactly these keys:
+subject, concept, sub_concept, intent, difficulty, is_repeat_struggle, strategy,
+requires_coaching, starts_new_question.
+
+Do not use Other > Other > Other for a recognizable learning question. For example:
+"explain why the sky is blue" is Physics > Optics > Rayleigh Scattering, and
+"multiply 22, 33" is Mathematics > Arithmetic > Multiplication. Use Other only
+when the question genuinely has no identifiable learning topic. Set is_repeat_struggle to true only when
 the supplied student memory contains prior evidence that the student is struggling
 with the same topic. If the memory has no prior conversations or mastery records,
 it must be false.
@@ -84,6 +100,46 @@ When an active question is supplied, set starts_new_question to true only if the
 student message introduces a distinct learning task or topic. Set it to false for
 an answer attempt, a request about the active question, or casual conversation.
 """
+
+
+def _parse_plan(raw_response):
+    """Extract the planner JSON even when the model wraps it in Markdown."""
+    text = (raw_response or "").strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+        text = text.rsplit("```", 1)[0].strip()
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("Planner response did not contain a JSON object")
+    return json.loads(text[start : end + 1])
+
+
+def _normalize_plan(candidate):
+    """Keep valid model classification while defaulting only invalid fields."""
+    if not isinstance(candidate, dict):
+        raise ValueError("Planner response was not a JSON object")
+
+    plan = DEFAULT_PLAN.copy()
+    for key in plan:
+        if key in candidate:
+            plan[key] = candidate[key]
+
+    for key in ("subject", "concept", "sub_concept"):
+        if not isinstance(plan[key], str) or not plan[key].strip():
+            plan[key] = "Other"
+        else:
+            plan[key] = plan[key].strip()
+
+    if plan["intent"] not in ALLOWED_INTENTS:
+        plan["intent"] = DEFAULT_PLAN["intent"]
+    if plan["difficulty"] not in ALLOWED_DIFFICULTIES:
+        plan["difficulty"] = DEFAULT_PLAN["difficulty"]
+    if plan["strategy"] not in ALLOWED_STRATEGIES:
+        plan["strategy"] = DEFAULT_PLAN["strategy"]
+    for key in ("is_repeat_struggle", "requires_coaching", "starts_new_question"):
+        if not isinstance(plan[key], bool):
+            plan[key] = DEFAULT_PLAN[key]
+    return plan
 
 
 def plan_response(student_message, student_memory, active_question=None):
@@ -118,9 +174,7 @@ def plan_response(student_message, student_memory, active_question=None):
         )
         if response is None:
             return DEFAULT_PLAN.copy()
-        plan = json.loads((response.output_text or "").strip().removeprefix("```json").removesuffix("```").strip())
-        if set(plan) != set(DEFAULT_PLAN):
-            return DEFAULT_PLAN.copy()
+        plan = _normalize_plan(_parse_plan(response.output_text))
         if is_fresh_learner:
             plan["is_repeat_struggle"] = False
         return plan
