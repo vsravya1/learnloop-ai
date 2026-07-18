@@ -64,5 +64,6 @@ Return only JSON matching the supplied schema.
         if set(assessment) != set(DEFAULT_ASSESSMENT):
             return DEFAULT_ASSESSMENT.copy()
         return assessment
-    except (json.JSONDecodeError, TypeError, ValueError):
+    except Exception as error:
+        print(f"Assessment response failed: {error}")
         return DEFAULT_ASSESSMENT.copy()

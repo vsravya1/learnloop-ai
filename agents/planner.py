@@ -126,5 +126,6 @@ def plan_response(student_message, student_memory, active_question=None):
         if is_fresh_learner:
             plan["is_repeat_struggle"] = False
         return plan
-    except (json.JSONDecodeError, TypeError, ValueError):
+    except Exception as error:
+        print(f"Planner response failed: {error}")
         return DEFAULT_PLAN.copy()
