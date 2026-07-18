@@ -113,12 +113,11 @@ def plan_response(student_message, student_memory, active_question=None):
                     f"Active question (if any):\n{active_question or 'None'}\n\n"
                     f"Student memory:\n{json.dumps(student_memory, default=str)}"
                 ),
-                text={"format": {"type": "json_schema", "name": "tutoring_plan", "strict": True, "schema": PLAN_SCHEMA}},
             )
         )
         if response is None:
             return DEFAULT_PLAN.copy()
-        plan = json.loads(response.output_text)
+        plan = json.loads((response.output_text or "").strip().removeprefix("```json").removesuffix("```").strip())
         if set(plan) != set(DEFAULT_PLAN):
             return DEFAULT_PLAN.copy()
         if is_fresh_learner:

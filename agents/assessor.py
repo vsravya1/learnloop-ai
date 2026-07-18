@@ -4,6 +4,7 @@ import json
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from agents.runtime import run_with_timeout
 
 
 load_dotenv()
@@ -42,25 +43,21 @@ Return only JSON matching the supplied schema.
 """
     try:
         client = OpenAI(timeout=20.0, max_retries=0)
-        response = client.responses.create(
-            model="gpt-5.6",
-            instructions=instructions,
-            input=(
-                f"Original question:\n{original_question}\n\n"
-                f"Student reply:\n{student_reply}\n\n"
-                f"Topic: {subject} > {concept} > {sub_concept}\n"
-                f"Coaching turns so far: {hint_count}"
-            ),
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "student_assessment",
-                    "strict": True,
-                    "schema": ASSESSMENT_SCHEMA,
-                }
-            },
+        response = run_with_timeout(
+            lambda: client.responses.create(
+                model="gpt-5.6",
+                instructions=instructions,
+                input=(
+                    f"Original question:\n{original_question}\n\n"
+                    f"Student reply:\n{student_reply}\n\n"
+                    f"Topic: {subject} > {concept} > {sub_concept}\n"
+                    f"Coaching turns so far: {hint_count}"
+                ),
+            )
         )
-        assessment = json.loads(response.output_text)
+        if response is None:
+            return DEFAULT_ASSESSMENT.copy()
+        assessment = json.loads((response.output_text or "").strip().removeprefix("```json").removesuffix("```").strip())
         if set(assessment) != set(DEFAULT_ASSESSMENT):
             return DEFAULT_ASSESSMENT.copy()
         return assessment

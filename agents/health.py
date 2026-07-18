@@ -1,8 +1,12 @@
 """Small, on-demand health check for LearnLoop's OpenAI connection."""
 
+from dotenv import load_dotenv
 from openai import OpenAI
 
 from agents.runtime import run_with_timeout
+
+
+load_dotenv()
 
 
 def check_openai_connection():

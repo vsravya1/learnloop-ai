@@ -1,6 +1,10 @@
 """Regular chat responses that stay outside LearnLoop's learning analytics."""
 
+from dotenv import load_dotenv
 from openai import OpenAI
+
+
+load_dotenv()
 
 
 def regular_chat_response(message, active_question=None):

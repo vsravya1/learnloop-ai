@@ -1,9 +1,13 @@
 """LearnLoop chat UI with transparent, question-level agent activity."""
 
+import os
 from pathlib import Path
 from uuid import uuid4
 
 import streamlit as st
+
+if "OPENAI_API_KEY" in st.secrets:
+    os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
 from agents.assessor import assess_response
 from agents.chat import regular_chat_response
