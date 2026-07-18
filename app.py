@@ -9,17 +9,17 @@ import streamlit as st
 if "OPENAI_API_KEY" in st.secrets:
     os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
-from agents.assessor import assess_response
-from agents.chat import regular_chat_response
-from agents.coach import coach_response, role_redirect_response
-from agents.coaching_loop import (
+from learnloop_agents.assessor import assess_response
+from learnloop_agents.chat import regular_chat_response
+from learnloop_agents.coach import coach_response, role_redirect_response
+from learnloop_agents.coaching_loop import (
     is_non_answer_deflection,
     next_turn_action,
     requests_full_answer,
 )
-from agents.health import check_openai_connection
-from agents.planner import plan_response
-from agents.safety import safety_response
+from learnloop_agents.health import check_openai_connection
+from learnloop_agents.planner import plan_response
+from learnloop_agents.safety import safety_response
 from db.db import (
     get_student_memory,
     init_db,

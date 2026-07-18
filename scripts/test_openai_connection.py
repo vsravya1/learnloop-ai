@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agents.health import check_openai_connection
+from learnloop_agents.health import check_openai_connection
 
 
 def main():
