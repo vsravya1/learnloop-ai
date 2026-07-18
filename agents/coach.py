@@ -86,6 +86,7 @@ or provide the complete solution at this stage.
         response = run_with_timeout(
             lambda: client.responses.create(
                 model="gpt-5.6",
+                reasoning={"effort": "low"},
                 instructions=instructions,
                 input=(
                     f"Original question:\n{original_question or student_message}\n\n"

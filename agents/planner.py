@@ -107,6 +107,7 @@ def plan_response(student_message, student_memory, active_question=None):
         response = run_with_timeout(
             lambda: client.responses.create(
                 model="gpt-5.6",
+                reasoning={"effort": "low"},
                 instructions=PLANNER_INSTRUCTIONS,
                 input=(
                     f"Student message:\n{student_message}\n\n"
