@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from db.db import init_db
+from learnloop_db.db import init_db
 from ui import inject_product_css
 
 

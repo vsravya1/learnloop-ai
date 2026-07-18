@@ -20,7 +20,7 @@ from learnloop_agents.coaching_loop import (
 from learnloop_agents.health import check_openai_connection
 from learnloop_agents.planner import plan_response
 from learnloop_agents.safety import safety_response
-from db.db import (
+from learnloop_db.db import (
     get_student_memory,
     init_db,
     log_agent_decision,
