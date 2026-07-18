@@ -41,7 +41,7 @@ both understood and correct_this_turn must be false.
 Return only JSON matching the supplied schema.
 """
     try:
-        client = OpenAI()
+        client = OpenAI(timeout=20.0, max_retries=0)
         response = client.responses.create(
             model="gpt-5.6",
             instructions=instructions,

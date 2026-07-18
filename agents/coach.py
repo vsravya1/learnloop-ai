@@ -81,7 +81,7 @@ or provide the complete solution at this stage.
 """
 
     try:
-        client = OpenAI()
+        client = OpenAI(timeout=20.0, max_retries=0)
         response = client.responses.create(
             model="gpt-5.6",
             instructions=instructions,

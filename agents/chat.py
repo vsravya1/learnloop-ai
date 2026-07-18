@@ -17,7 +17,7 @@ worked example, or claim that an answer is correct. If there is an open learning
 question, politely say they can continue it whenever they are ready.
 """
     try:
-        response = OpenAI().responses.create(
+        response = OpenAI(timeout=20.0, max_retries=0).responses.create(
             model="gpt-5.6",
             instructions=instructions,
             input=f"{context}Student message: {message}",

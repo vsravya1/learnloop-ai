@@ -102,7 +102,7 @@ def plan_response(student_message, student_memory, active_question=None):
         "recent_conversations"
     )
     try:
-        client = OpenAI()
+        client = OpenAI(timeout=20.0, max_retries=0)
         response = client.responses.create(
             model="gpt-5.6",
             instructions=PLANNER_INSTRUCTIONS,
