@@ -107,7 +107,8 @@ def summarize_questions(question_plans, events):
 
 def render_activity_table(question_summary):
     """Render readable question rows with a color-coded outcome badge."""
-    table_data = question_summary.drop(columns=["timestamp"])
+    table_data = question_summary.drop(columns=["timestamp", "hint_count", "outcome"])
+    table_data["summary"] = ""
     headers = "".join(f"<th>{escape(column)}</th>" for column in table_data.columns)
     outcome_badges = {
         "solved independently": ("Solved independently", "outcome-solved"),
@@ -120,9 +121,16 @@ def render_activity_table(question_summary):
         cells = []
         for column in table_data.columns:
             value = "" if pd.isna(row[column]) else str(row[column])
-            if column == "outcome":
-                label, css_class = outcome_badges.get(value, (value, "outcome-progress"))
-                cells.append(f'<td><span class="outcome-badge {css_class}">{escape(label)}</span></td>')
+            if column == "summary":
+                outcome = "" if pd.isna(row["outcome"]) else str(row["outcome"])
+                label, css_class = outcome_badges.get(outcome, (outcome, "outcome-progress"))
+                turns = int(row["hint_count"])
+                cells.append(
+                    '<td class="activity-summary">'
+                    f'<div>{turns} coaching turn{"s" if turns != 1 else ""}</div>'
+                    f'<span class="outcome-badge {css_class}">{escape(label)}</span>'
+                    "</td>"
+                )
             else:
                 cells.append(f"<td>{escape(value)}</td>")
         body_rows.append("<tr>" + "".join(cells) + "</tr>")
@@ -131,17 +139,17 @@ def render_activity_table(question_summary):
         """
         <style>
             .activity-table-wrap { overflow-x: auto; border: 1px solid #e8e8ee; border-radius: 0.65rem; }
-            .activity-table { width: 100%; min-width: 1120px; border-collapse: collapse; font-size: 0.9rem; table-layout: fixed; }
+            .activity-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.9rem; table-layout: fixed; }
             .activity-table th { background: #f7f6fb; color: #4d4d5b; font-weight: 600; text-align: left; overflow-wrap: normal; }
             .activity-table th, .activity-table td { padding: 0.75rem; border-bottom: 1px solid #ececf1; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
             .activity-table th:nth-child(1) { width: 8%; white-space: nowrap; }
             .activity-table th:nth-child(2) { width: 16%; }
             .activity-table th:nth-child(3) { width: 16%; }
-            .activity-table th:nth-child(4) { width: 46%; }
-            .activity-table th:nth-child(5) { width: 6%; min-width: 72px; white-space: nowrap; }
-            .activity-table th:nth-child(6) { width: 8%; min-width: 120px; white-space: nowrap; }
+            .activity-table th:nth-child(4) { width: 47%; }
+            .activity-table th:nth-child(5) { width: 13%; min-width: 130px; white-space: nowrap; }
             .activity-table td:nth-child(4) { white-space: pre-line; }
-            .activity-table td:nth-child(5), .activity-table td:nth-child(6) { white-space: nowrap; }
+            .activity-summary { white-space: nowrap; }
+            .activity-summary > div { color: #5b5b6b; font-size: 0.8rem; margin-bottom: 0.4rem; }
             .outcome-badge { display: inline-block; padding: 0.22rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
             .outcome-solved { background: #dcfce7; color: #166534; }
             .outcome-reveal { background: #fef3c7; color: #92400e; }
