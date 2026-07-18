@@ -4,6 +4,7 @@ import json
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from agents.runtime import run_with_timeout
 from settings import MAX_COACHING_TURNS
 
 
@@ -82,17 +83,21 @@ or provide the complete solution at this stage.
 
     try:
         client = OpenAI(timeout=20.0, max_retries=0)
-        response = client.responses.create(
-            model="gpt-5.6",
-            instructions=instructions,
-            input=(
-                f"Original question:\n{original_question or student_message}\n\n"
-                f"Latest student message:\n{student_message}\n\n"
-                f"Completed coaching turns: {hint_count}\n\n"
-                f"Assessment of latest reply: {json.dumps(assessment or {}, default=str)}\n\n"
-                f"Student memory:\n{json.dumps(student_memory, default=str)}"
-            ),
+        response = run_with_timeout(
+            lambda: client.responses.create(
+                model="gpt-5.6",
+                instructions=instructions,
+                input=(
+                    f"Original question:\n{original_question or student_message}\n\n"
+                    f"Latest student message:\n{student_message}\n\n"
+                    f"Completed coaching turns: {hint_count}\n\n"
+                    f"Assessment of latest reply: {json.dumps(assessment or {}, default=str)}\n\n"
+                    f"Student memory:\n{json.dumps(student_memory, default=str)}"
+                ),
+            )
         )
+        if response is None:
+            raise TimeoutError("Coach request timed out")
         reply = (response.output_text or "").strip()
         if reply:
             return reply

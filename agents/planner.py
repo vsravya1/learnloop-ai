@@ -4,6 +4,7 @@ import json
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from agents.runtime import run_with_timeout
 
 
 load_dotenv()
@@ -103,23 +104,20 @@ def plan_response(student_message, student_memory, active_question=None):
     )
     try:
         client = OpenAI(timeout=20.0, max_retries=0)
-        response = client.responses.create(
-            model="gpt-5.6",
-            instructions=PLANNER_INSTRUCTIONS,
-            input=(
-                f"Student message:\n{student_message}\n\n"
-                f"Active question (if any):\n{active_question or 'None'}\n\n"
-                f"Student memory:\n{json.dumps(student_memory, default=str)}"
-            ),
-            text={
-                "format": {
-                    "type": "json_schema",
-                    "name": "tutoring_plan",
-                    "strict": True,
-                    "schema": PLAN_SCHEMA,
-                }
-            },
+        response = run_with_timeout(
+            lambda: client.responses.create(
+                model="gpt-5.6",
+                instructions=PLANNER_INSTRUCTIONS,
+                input=(
+                    f"Student message:\n{student_message}\n\n"
+                    f"Active question (if any):\n{active_question or 'None'}\n\n"
+                    f"Student memory:\n{json.dumps(student_memory, default=str)}"
+                ),
+                text={"format": {"type": "json_schema", "name": "tutoring_plan", "strict": True, "schema": PLAN_SCHEMA}},
+            )
         )
+        if response is None:
+            return DEFAULT_PLAN.copy()
         plan = json.loads(response.output_text)
         if set(plan) != set(DEFAULT_PLAN):
             return DEFAULT_PLAN.copy()

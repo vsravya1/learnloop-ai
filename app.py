@@ -13,6 +13,7 @@ from agents.coaching_loop import (
     next_turn_action,
     requests_full_answer,
 )
+from agents.health import check_openai_connection
 from agents.planner import plan_response
 from agents.safety import safety_response
 from db.db import (
@@ -187,6 +188,16 @@ for key, value in {
 with st.sidebar:
     st.header("Student")
     st.write(f"Current student ID: `{st.session_state.student_id or 'Not set'}`")
+    if st.button("Test AI connection", use_container_width=True):
+        with st.spinner("Checking OpenAI..."):
+            connected, detail = check_openai_connection()
+        st.session_state.ai_connection_status = (connected, detail)
+    if "ai_connection_status" in st.session_state:
+        connected, detail = st.session_state.ai_connection_status
+        if connected:
+            st.success("OpenAI connected")
+        else:
+            st.error(detail)
     if st.button("Reset conversation"):
         st.session_state.messages = []
         st.session_state.active_question = None
