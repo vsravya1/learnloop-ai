@@ -131,16 +131,17 @@ def render_activity_table(question_summary):
         """
         <style>
             .activity-table-wrap { overflow-x: auto; border: 1px solid #e8e8ee; border-radius: 0.65rem; }
-            .activity-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; table-layout: fixed; }
-            .activity-table th { background: #f7f6fb; color: #4d4d5b; font-weight: 600; text-align: left; }
+            .activity-table { width: 100%; min-width: 1120px; border-collapse: collapse; font-size: 0.9rem; table-layout: fixed; }
+            .activity-table th { background: #f7f6fb; color: #4d4d5b; font-weight: 600; text-align: left; overflow-wrap: normal; }
             .activity-table th, .activity-table td { padding: 0.75rem; border-bottom: 1px solid #ececf1; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
-            .activity-table th:nth-child(1) { width: 9%; }
-            .activity-table th:nth-child(2) { width: 15%; }
-            .activity-table th:nth-child(3) { width: 17%; }
-            .activity-table th:nth-child(4) { width: 48%; }
-            .activity-table th:nth-child(5) { width: 5%; }
-            .activity-table th:nth-child(6) { width: 6%; }
+            .activity-table th:nth-child(1) { width: 8%; white-space: nowrap; }
+            .activity-table th:nth-child(2) { width: 16%; }
+            .activity-table th:nth-child(3) { width: 16%; }
+            .activity-table th:nth-child(4) { width: 46%; }
+            .activity-table th:nth-child(5) { width: 6%; min-width: 72px; white-space: nowrap; }
+            .activity-table th:nth-child(6) { width: 8%; min-width: 120px; white-space: nowrap; }
             .activity-table td:nth-child(4) { white-space: pre-line; }
+            .activity-table td:nth-child(5), .activity-table td:nth-child(6) { white-space: nowrap; }
             .outcome-badge { display: inline-block; padding: 0.22rem 0.55rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
             .outcome-solved { background: #dcfce7; color: #166534; }
             .outcome-reveal { background: #fef3c7; color: #92400e; }
