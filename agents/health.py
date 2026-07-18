@@ -3,7 +3,7 @@
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from agents.runtime import run_with_timeout
+from .runtime import run_with_timeout
 
 
 load_dotenv()
